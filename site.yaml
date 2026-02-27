@@ -14,8 +14,17 @@
     tags: always
     apt:
       upgrade: dist
-      upgrade_cache: yes
+      update_cache: yes
     when: ansible_os_family == "Debian"
+
+  - name: copy html file for site
+    tags: apache,ubuntu
+    ansible.builtin.copy:
+      src: default_site.html
+      dest: /var/www/html/index.html
+      owner: root
+      group: root
+      mode: 0644
 
 - hosts:  web_servers
   become: true
@@ -29,6 +38,44 @@
         - libapache2-mod-php
     when: ansible_os_family == "Debian"
 
+
+  - name: install apache on web servers (fedora)
+    tags: apache,fedora
+    dnf:
+      name: httpd   
+    when: ansible_os_family == "RedHat" 
+
+  - name: ensure apache is running (Ubuntu)
+    tags: apache,ubuntu
+    ansible.builtin.service:
+      name: apache2
+      state: started
+    when: ansible_os_family == "Ubuntu"
+
+  - name: ensure apache is running (fedora)
+    tags: apache, fedora
+    ansible.builtin.service:
+      name: httpd
+      state: started
+    when: ansible_os_family == "RedHat"
+
+  - name: change email address for admin
+    tags: apache, fedora
+    ansible.builtin.lineinfile:
+      path: /etc/httpd/conf/httpd.conf
+      regexp: '^ServerAdmin'
+      line: ServerAdmin someone@somewhere.net
+    when:  ansible_distribution == "Fedora"
+    register: httpd
+
+  - name: restart httpd (fedora)
+    tags: apache, fedora
+    ansible.builtin.service:
+      name: httpd
+      state: restarted
+    when: httpd.changed
+
+  
 - hosts: db_servers
   become: yes
   tasks:
